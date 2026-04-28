@@ -327,8 +327,30 @@ public class lab3 {
                 System.out.println("\t" + n + " instruction(s) executed");
                 break;
             case 'r': // run until the program ends
+                while (PC < instructionArray.size()) {
+                    executeInstruction();
+                    PC++;
+                }
+                System.exit(0);
                 break;
             case 'm': // m n1 n2 display dataMem from n1 to n2
+                String regex = "[,\\.\\s()$]+";
+                String[] parsedLine = cmd.split(regex);
+                int n1 = Integer.parseInt(parsedLine[1]);
+                int n2 = Integer.parseInt(parsedLine[2]);
+                if (
+                    n1 < 0 ||
+                    n1 > dataMem.length ||
+                    n2 < 0 ||
+                    n2 > dataMem.length ||
+                    n1 > n2
+                ) {
+                    System.out.println("Invalid memory range.");
+                    break;
+                }
+                for (int i = n1; i <= n2; i++) {
+                    System.out.println("[" + i + "] = " + dataMem[i]);
+                }
                 break;
             case 'c': // clear all registers, mem, reset PC
                 Arrays.fill(registers, 0);
@@ -345,31 +367,35 @@ public class lab3 {
         Instruction currInst = instructionArray.get(PC);
 
         switch (currInst.getName()) {
-            case "add":
+            case "add": {
                 ((Rtype) currInst).setRd(
                     ((Rtype) currInst).getRs() + ((Rtype) currInst).getRt()
                 );
                 PC++;
                 break;
-            case "sub":
+            }
+            case "sub": {
                 ((Rtype) currInst).setRd(
                     ((Rtype) currInst).getRs() - ((Rtype) currInst).getRt()
                 );
                 PC++;
                 break;
-            case "and":
+            }
+            case "and": {
                 ((Rtype) currInst).setRd(
                     ((Rtype) currInst).getRs() & ((Rtype) currInst).getRt()
                 );
                 PC++;
                 break;
-            case "or":
+            }
+            case "or": {
                 ((Rtype) currInst).setRd(
                     ((Rtype) currInst).getRs() | ((Rtype) currInst).getRt()
                 );
                 PC++;
                 break;
-            case "slt":
+            }
+            case "slt": {
                 ((Rtype) currInst).setRd(
                     ((Rtype) currInst).getRs() < ((Rtype) currInst).getRt()
                         ? 1
@@ -377,29 +403,98 @@ public class lab3 {
                 );
                 PC++;
                 break;
-            case "sll":
+            }
+            case "sll": {
+                ((Rtype) currInst).setRd(
+                    (((Rtype) currInst).getRt() <<
+                        ((Rtype) currInst).getShamt())
+                );
+                PC++;
                 break;
-            case "jr":
+            }
+            case "jr": {
+                // register is found in rs field of the current instruction
+                int dest = ((Rtype) currInst).getRs();
+                if (dest >= registers.length) {
+                    System.out.println(
+                        "Error: jr instruction tried to access an invalid instruction index."
+                    );
+                    System.exit(1);
+                }
+                PC = registers[dest];
                 break;
-            case "addi":
+            }
+            case "addi": {
+                ((Itype) currInst).setRt(
+                    ((Itype) currInst).getRt() +
+                        ((Itype) currInst).getImmediate()
+                );
+                PC++;
                 break;
-            case "beq":
+            }
+            case "beq": {
+                // if rs == rt, PC = PC + 1 + branch address
+                // else move onto the next instruction
+                PC =
+                    ((Itype) currInst).getRs() == ((Itype) currInst).getRt()
+                        ? PC + 1 + ((Itype) currInst).getImmediate()
+                        : PC + 1;
                 break;
-            case "bne":
+            }
+            case "bne": {
+                PC =
+                    ((Itype) currInst).getRs() != ((Itype) currInst).getRt()
+                        ? PC + 1 + ((Itype) currInst).getImmediate()
+                        : PC + 1;
                 break;
-            case "lw":
+            }
+            case "lw": {
+                // reg(rt) = mem(rs + imm)
+                registers[((Itype) currInst).getRt()] = dataMem[registers[((
+                        (Itype) currInst
+                    ).getRs())] +
+                ((Itype) currInst).getImmediate()];
+                PC++;
                 break;
-            case "sw":
+            }
+            case "sw": {
+                // mem(rs + imm) = reg(rt)
+                dataMem[registers[(((Itype) currInst).getRs())] +
+                ((Itype) currInst).getImmediate()] = registers[(
+                    (Itype) currInst
+                ).getRt()];
+                PC++;
                 break;
-            case "j":
+            }
+            case "j": {
+                int dest = ((Jtype) currInst).getAddress();
+                if (dest >= instructionArray.size()) {
+                    System.out.println(
+                        "Error: j instruction tried to access an invalid instruction index."
+                    );
+                    System.exit(1);
+                }
+                PC = dest;
                 break;
-            case "jal":
+            }
+            case "jal": {
+                registers[Register.getNumber("ra")] = PC + 1;
+                int dest = ((Jtype) currInst).getAddress();
+                if (dest >= instructionArray.size()) {
+                    System.out.println(
+                        "Error: jal instruction tried to access an invalid instruction index."
+                    );
+                    System.exit(1);
+                }
+                PC = dest;
                 break;
-            default:
+            }
+            default: {
                 System.out.println(
                     "Error: unsupported instruction " + currInst.getName()
                 );
                 System.exit(1);
+            }
         }
     }
 }
