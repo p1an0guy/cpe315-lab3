@@ -11,16 +11,20 @@ public class lab3 {
     static ArrayList<Instruction> instructionArray = new ArrayList<>();
     static int[] registers = new int[32]; // N.B. remember to always set $0 and $zero to 0!!
     static int[] dataMem = new int[8192];
-    static int PC;
+    static int PC = 0;
 
     public static void main(String[] args) {
+        if (args.length < 1 || args.length > 2) {
+            System.out.println("Invalid number of arguments provided.");
+            System.exit(1);
+        }
         // open file specified in first command line arg
         parseFile(new File(args[0]));
 
         if (args.length > 1) {
-            scriptMode(args[1]); // TODO: implement static void scriptMode
+            scriptMode(args[1]);
         } else {
-            interactiveMode(); // TODO: implement static void interactiveMode();
+            interactiveMode();
         }
     }
 
@@ -71,11 +75,10 @@ public class lab3 {
                             new Rtype(
                                 name,
                                 Instruction.getOpcode(name),
-                                Register.getBinary(parsedLine[2]),
-                                Register.getBinary(parsedLine[3]),
-                                Register.getBinary(parsedLine[1]),
-                                "00000",
-                                Rtype.getFunct(name)
+                                Register.getNumber(parsedLine[2]),
+                                Register.getNumber(parsedLine[3]),
+                                Register.getNumber(parsedLine[1]),
+                                0
                             )
                         );
                         break;
@@ -85,17 +88,10 @@ public class lab3 {
                             new Rtype(
                                 name,
                                 Instruction.getOpcode(name),
-                                "00000",
-                                Register.getBinary(parsedLine[2]),
-                                Register.getBinary(parsedLine[1]),
-                                // shamt needs to be a 5-bit signed immediate
-                                String.format(
-                                    "%5s",
-                                    Integer.toBinaryString(
-                                        (Integer.parseInt(parsedLine[3])) & 0x1F
-                                    )
-                                ).replace(' ', '0'),
-                                Rtype.getFunct(name)
+                                0,
+                                Register.getNumber(parsedLine[2]),
+                                Register.getNumber(parsedLine[1]),
+                                Integer.parseInt(parsedLine[3])
                             )
                         );
                         break;
@@ -105,11 +101,10 @@ public class lab3 {
                             new Rtype(
                                 name,
                                 Instruction.getOpcode(name),
-                                Register.getBinary(parsedLine[1]),
-                                "00000",
-                                "00000",
-                                "00000",
-                                Rtype.getFunct(name)
+                                Register.getNumber(parsedLine[1]),
+                                0,
+                                0,
+                                0
                             )
                         );
                         break;
@@ -119,15 +114,9 @@ public class lab3 {
                             new Itype(
                                 name,
                                 Instruction.getOpcode(name),
-                                Register.getBinary(parsedLine[2]),
-                                Register.getBinary(parsedLine[1]),
-                                String.format(
-                                    "%16s",
-                                    Integer.toBinaryString(
-                                        (Integer.parseInt(parsedLine[3])) &
-                                            0xFFFF
-                                    )
-                                ).replace(' ', '0')
+                                Register.getNumber(parsedLine[2]),
+                                Register.getNumber(parsedLine[1]),
+                                Integer.parseInt(parsedLine[3])
                             )
                         );
                         break;
@@ -137,8 +126,8 @@ public class lab3 {
                             new Itype(
                                 name,
                                 Instruction.getOpcode(name),
-                                Register.getBinary(parsedLine[1]),
-                                Register.getBinary(parsedLine[2]),
+                                Register.getNumber(parsedLine[1]),
+                                Register.getNumber(parsedLine[2]),
                                 parsedLine[3]
                             )
                         );
@@ -150,15 +139,9 @@ public class lab3 {
                             new Itype(
                                 name,
                                 Instruction.getOpcode(name),
-                                Register.getBinary(parsedLine[3]),
-                                Register.getBinary(parsedLine[1]),
-                                String.format(
-                                    "%16s",
-                                    Integer.toBinaryString(
-                                        (Integer.parseInt(parsedLine[2])) &
-                                            0xFFFF
-                                    )
-                                ).replace(' ', '0')
+                                Register.getNumber(parsedLine[3]),
+                                Register.getNumber(parsedLine[1]),
+                                Integer.parseInt(parsedLine[2])
                             )
                         );
                         break;
@@ -174,9 +157,7 @@ public class lab3 {
                         );
                         break;
                     default:
-                        instructionArray.add(
-                            new Jtype(name, "invalid", "invalid") {}
-                        );
+                        instructionArray.add(new Jtype(name, "invalid", -1) {});
                         break;
                 }
             }
@@ -187,7 +168,8 @@ public class lab3 {
         }
 
         // SECOND PASS - REPLACE LABELS WITH ADDRESSES
-        for (Instruction inst : instructionArray) {
+        for (int i = 0; i < instructionArray.size(); i++) {
+            Instruction inst = instructionArray.get(i);
             if (inst.getOpcode().equals("invalid")) {
                 System.out.println("invalid instruction: " + inst.getName());
                 System.exit(1);
@@ -195,32 +177,17 @@ public class lab3 {
             // beq and bne: 16-bit immediate = labelAddr - (curr instruction idx + 1)
             if (inst.getName().equals("beq") || inst.getName().equals("bne")) {
                 ((Itype) inst).setImmediate(
-                    // convert to 2's complement binary, sign extend to 16 bits
-                    String.format(
-                        "%16s",
-                        Integer.toBinaryString(
-                            (labelAddr.get(((Itype) inst).getImmediate()) -
-                                    (instructionArray.indexOf(inst) + 1)) &
-                                0xFFFF
-                        )
-                    ).replace(' ', '0')
+                    labelAddr.get(((Itype) inst).getLabel()) - (i + 1)
                 );
                 // j and jal: use the absolute address of the label
             } else if (
                 inst.getName().equals("j") || inst.getName().equals("jal")
             ) {
                 ((Jtype) inst).setAddress(
-                    // convert to 2's complement binary, sign extend to 26 bits
-                    String.format(
-                        "%26s",
-                        Integer.toBinaryString(
-                            (labelAddr.get(((Jtype) inst).getAddress()) &
-                                0x3FFFFFF)
-                        )
-                    ).replace(' ', '0')
+                    labelAddr.get(((Jtype) inst).getLabel())
                 );
             }
-            // print out the binary for the instruction
+            // print out the parsed instruction for debugging
             System.out.println(inst);
         }
     }
@@ -235,6 +202,22 @@ public class lab3 {
         }
 
         usrInput.close();
+    }
+
+    public static void scriptMode(String file) {
+        File myObj = new File(file);
+
+        // try-with-resources: Scanner will be closed automatically
+        try (Scanner scanner = new Scanner(myObj)) {
+            while (scanner.hasNextLine()) {
+                String cmd = scanner.nextLine();
+                executeCmd(cmd);
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("Unable to open script file.");
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     public static void executeCmd(String cmd) {
@@ -258,13 +241,6 @@ public class lab3 {
                 break;
             case 'd': // dump register state
                 System.out.println("\npc = " + PC);
-                // $0 = 0          $v0 = 0         $v1 = 0         $a0 = 0
-                // $a1 = 0         $a2 = 0         $a3 = 0         $t0 = 0
-                // $t1 = 0         $t2 = 0         $t3 = 0         $t4 = 0
-                // $t5 = 0         $t6 = 0         $t7 = 0         $s0 = 0
-                // $s1 = 0         $s2 = 0         $s3 = 0         $s4 = 0
-                // $s5 = 0         $s6 = 0         $s7 = 0         $t8 = 0
-                // $t9 = 0         $sp = 0         $ra = 0
                 System.out.println(
                     "$0 = " +
                         registers[0] +
@@ -335,8 +311,20 @@ public class lab3 {
                 );
 
                 break;
-            case 's': // single step through program
-                // see if there are more args
+            case 's':
+                // determine how many instructions to execute
+                int n =
+                    cmd.length() > 1
+                        ? Integer.parseInt(cmd.substring(cmd.indexOf('s')))
+                        : 1;
+                // step through n number of instructions
+                for (int i = 0; i < n; i++) {
+                    if (PC >= instructionArray.size()) {
+                        break;
+                    }
+                    executeInstruction();
+                }
+                System.out.println("\t" + n + " instruction(s) executed");
                 break;
             case 'r': // run until the program ends
                 break;
@@ -350,6 +338,68 @@ public class lab3 {
                 break;
             default:
                 System.out.println("Error: Invalid command. 'h' for help menu");
+        }
+    }
+
+    static void executeInstruction() {
+        Instruction currInst = instructionArray.get(PC);
+
+        switch (currInst.getName()) {
+            case "add":
+                ((Rtype) currInst).setRd(
+                    ((Rtype) currInst).getRs() + ((Rtype) currInst).getRt()
+                );
+                PC++;
+                break;
+            case "sub":
+                ((Rtype) currInst).setRd(
+                    ((Rtype) currInst).getRs() - ((Rtype) currInst).getRt()
+                );
+                PC++;
+                break;
+            case "and":
+                ((Rtype) currInst).setRd(
+                    ((Rtype) currInst).getRs() & ((Rtype) currInst).getRt()
+                );
+                PC++;
+                break;
+            case "or":
+                ((Rtype) currInst).setRd(
+                    ((Rtype) currInst).getRs() | ((Rtype) currInst).getRt()
+                );
+                PC++;
+                break;
+            case "slt":
+                ((Rtype) currInst).setRd(
+                    ((Rtype) currInst).getRs() < ((Rtype) currInst).getRt()
+                        ? 1
+                        : 0
+                );
+                PC++;
+                break;
+            case "sll":
+                break;
+            case "jr":
+                break;
+            case "addi":
+                break;
+            case "beq":
+                break;
+            case "bne":
+                break;
+            case "lw":
+                break;
+            case "sw":
+                break;
+            case "j":
+                break;
+            case "jal":
+                break;
+            default:
+                System.out.println(
+                    "Error: unsupported instruction " + currInst.getName()
+                );
+                System.exit(1);
         }
     }
 }
