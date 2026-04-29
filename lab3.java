@@ -210,6 +210,7 @@ public class lab3 {
             while (scanner.hasNextLine()) {
                 String cmd = scanner.nextLine();
                 System.out.println("mips> " + cmd);
+                if (cmd.equals("q")) System.exit(0);
                 executeCmd(cmd);
             }
         } catch (FileNotFoundException e) {
@@ -221,7 +222,7 @@ public class lab3 {
 
     public static void executeCmd(String cmd) {
         switch (cmd.charAt(0)) {
-            case 'h': // sh = show help
+            case 'h': // h = show help
                 System.out.println("h = show help");
                 System.out.println("d = dump register state");
                 System.out.println(
