@@ -1,3 +1,7 @@
+// Names: Jonah Chan, Nicholas Chapman
+// CPE 315-2264
+// Lab 3
+
 import java.io.File; // Import the File class
 import java.io.FileNotFoundException; // Import this class to handle errors
 import java.util.ArrayList;
